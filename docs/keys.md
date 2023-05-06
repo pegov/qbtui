@@ -15,8 +15,8 @@ i       - info
 o Enter - open file/folder
 O       - open folder in the default file manager
 c       - categories
-d       - delete torrent
-D       - delete torrent and files
+x       - delete
+X       - delete files
 r       - reload
 /       - search
 
