@@ -1,0 +1,28 @@
+[package]
+name = "qbtui"
+description = "A terminal user interface for qBittorrent"
+homepage = "https://github.com/pegov/qbtui"
+repository = "https://github.com/pegov/qbtui"
+categories = ["command-line-utilities"]
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json", "cookies"] }
+tui = "0.19"
+crossterm = { version = "0.26", features = ["event-stream"]}
+anyhow = "1"
+clap = { version = "4.2", features = ["derive"] }
+open = "4"
+
+[[bin]]
+bench = false
+path = "src/main.rs"
+name = "qbtui"
