@@ -299,25 +299,28 @@ impl App {
     }
 
     pub async fn apply_current_action(&mut self) {
-        if let Some(torrent) = self.get_selected_torrent() {
-            if let Some(ref action) = self.current_action {
-                match action {
-                    Action::Delete => {
-                        self.api_tx
-                            .send(ApiEvent::Delete(torrent.hash.clone()))
-                            .await
-                            .unwrap();
-                    }
-                    Action::DeleteFiles => {
-                        self.api_tx
-                            .send(ApiEvent::DeleteFiles(torrent.hash.clone()))
-                            .await
-                            .unwrap();
+        if self.confirm {
+            if let Some(torrent) = self.get_selected_torrent() {
+                if let Some(ref action) = self.current_action {
+                    match action {
+                        Action::Delete => {
+                            self.api_tx
+                                .send(ApiEvent::Delete(torrent.hash.clone()))
+                                .await
+                                .unwrap();
+                        }
+                        Action::DeleteFiles => {
+                            self.api_tx
+                                .send(ApiEvent::DeleteFiles(torrent.hash.clone()))
+                                .await
+                                .unwrap();
+                        }
                     }
                 }
             }
-            self.reset_current_action();
-            self.current_route = Route::Torrents;
         }
+
+        self.reset_current_action();
+        self.current_route = Route::Torrents;
     }
 }
