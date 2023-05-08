@@ -58,7 +58,7 @@ pub async fn start_ui(app: Arc<Mutex<App>>, ui_rx: Receiver<UiEvent>) -> Result<
     Ok(())
 }
 
-fn draw_centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+fn create_centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -247,7 +247,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let size = f.size();
 
-    let area = draw_centered_rect(40, 40, size);
+    let area = create_centered_rect(40, 40, size);
     app.sort_list_rect = Some(area);
 
     let block = Block::default()
@@ -357,7 +357,7 @@ fn draw_categories<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
 fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
     let size = f.size();
-    let centered_rect = draw_centered_rect(70, 40, size);
+    let area = create_centered_rect(70, 40, size);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -378,8 +378,8 @@ fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
         .alignment(Alignment::Center)
         .wrap(Wrap { trim: true });
 
-    f.render_widget(Clear, centered_rect);
-    f.render_widget(paragraph, centered_rect);
+    f.render_widget(Clear, area);
+    f.render_widget(paragraph, area);
 }
 
 fn draw_dialog<B: Backend>(f: &mut Frame<B>, app: &mut App) {
