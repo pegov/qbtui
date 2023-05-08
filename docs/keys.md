@@ -19,6 +19,7 @@ x       - delete
 X       - delete files
 r       - reload
 /       - search
+t       - sort options
 
 ## Search
 

@@ -28,7 +28,7 @@ use tui::{
 };
 
 use crate::{
-    app::{Action, App, Notification, Route},
+    app::{Action, App, Notification, Route, SortOrder},
     model::TorrentInfo,
 };
 
@@ -154,8 +154,35 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::White);
 
+    let category_header = match app.category_sort_order {
+        Some(SortOrder::Asc) => "Category ⏷",
+        Some(SortOrder::Desc) => "Category ⏶",
+        None => "Category",
+    };
+
+    let name_header = match app.name_sort_order {
+        Some(SortOrder::Asc) => "Name ⏷",
+        Some(SortOrder::Desc) => "Name ⏶",
+        None => "Name",
+    };
+
+    let status_icon_header = match app.status_sort_order {
+        Some(SortOrder::Asc) => "⏷",
+        Some(SortOrder::Desc) => "⏶",
+        None => "",
+    };
+
     let headers = [
-        "Category", "", "Name", "Size", "%", "Seeds", "Peers", "Down", "Up", "Eta",
+        category_header,
+        status_icon_header,
+        name_header,
+        "Size",
+        "%",
+        "Seeds",
+        "Peers",
+        "Down",
+        "Up",
+        "Eta",
     ];
     let cells = headers
         .into_iter()
@@ -215,6 +242,66 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .widths(&table_constraints);
 
     f.render_stateful_widget(table, rects[0], &mut app.torrents_table.state);
+}
+
+fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+    let size = f.size();
+
+    let area = draw_centered_rect(40, 40, size);
+    app.sort_list_rect = Some(area);
+
+    let block = Block::default()
+        .title("Toggle sort options")
+        .title_alignment(Alignment::Center)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded);
+
+    let category_option = match app.category_sort_order {
+        Some(SortOrder::Asc) => "Category ⏷",
+        Some(SortOrder::Desc) => "Category ⏶",
+        None => "Category",
+    };
+
+    let name_option = match app.name_sort_order {
+        Some(SortOrder::Asc) => "Name ⏷",
+        Some(SortOrder::Desc) => "Name ⏶",
+        None => "Name",
+    };
+
+    let status_option = match app.status_sort_order {
+        Some(SortOrder::Asc) => "Status ⏷",
+        Some(SortOrder::Desc) => "Status ⏶",
+        None => "Status",
+    };
+
+    let sort_options = vec![
+        category_option.to_owned(),
+        name_option.to_owned(),
+        status_option.to_owned(),
+    ];
+
+    app.sort_list.items = sort_options;
+
+    let items: Vec<ListItem> = app
+        .sort_list
+        .items
+        .iter()
+        .map(|c| ListItem::new(c.as_str()))
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .start_corner(Corner::TopLeft)
+        .style(Style::default().fg(Color::White))
+        .highlight_style(Style::default().bg(Color::White).fg(Color::Black))
+        .highlight_symbol("> ");
+
+    if app.sort_list.state.selected().is_none() {
+        app.sort_list.state.select(Some(0));
+    }
+
+    f.render_widget(Clear, area);
+    f.render_stateful_widget(list, area, &mut app.sort_list.state);
 }
 
 fn draw_help<B: Backend>(f: &mut Frame<B>, app: &mut App) {
@@ -439,6 +526,10 @@ pub async fn run<B: Backend>(
             let _ = terminal.draw(|f| {
                 match app.current_route {
                     Route::Torrents | Route::Search | Route::Dialog => draw_torrents(f, &mut app),
+                    Route::Sort => {
+                        draw_torrents(f, &mut app);
+                        draw_sort(f, &mut app);
+                    }
                     Route::Help => draw_help(f, &mut app),
                     Route::Categories => draw_categories(f, &mut app),
                     Route::Info => draw_info(f, &mut app),

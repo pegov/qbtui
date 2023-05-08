@@ -17,8 +17,7 @@ use crate::{
 pub enum Route {
     #[default]
     Torrents,
-    // TODO
-    // Sort,
+    Sort,
     Categories,
     Search,
     Help,
@@ -51,7 +50,7 @@ pub struct ScrollableTextState {
     pub text_height: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub enum SelectedCategory {
     #[default]
     All,
@@ -68,6 +67,20 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Notification {
     FileNotFound,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+pub fn next_sort_order(curr: &Option<SortOrder>) -> Option<SortOrder> {
+    match curr {
+        Some(SortOrder::Asc) => Some(SortOrder::Desc),
+        Some(SortOrder::Desc) => None,
+        None => Some(SortOrder::Asc),
+    }
 }
 
 #[derive(Debug)]
@@ -111,6 +124,13 @@ pub struct App {
 
     pub current_action: Option<Action>,
     pub confirm: bool,
+
+    pub category_sort_order: Option<SortOrder>,
+    pub name_sort_order: Option<SortOrder>,
+    pub status_sort_order: Option<SortOrder>,
+
+    pub sort_list: AppListState,
+    pub sort_list_rect: Option<Rect>,
 
     pub left_click: (u16, u16),
     pub left_click_ts: SystemTime,
@@ -165,6 +185,13 @@ impl App {
             current_action: None,
             confirm: false,
 
+            category_sort_order: Some(SortOrder::Asc),
+            name_sort_order: Some(SortOrder::Asc),
+            status_sort_order: Some(SortOrder::Asc),
+
+            sort_list: AppListState::default(),
+            sort_list_rect: None,
+
             left_click: (0, 0),
             left_click_ts: SystemTime::now(),
 
@@ -178,6 +205,9 @@ impl App {
         match self.current_route {
             Route::Torrents => {
                 handlers::torrents::handle_key_event(event, self).await;
+            }
+            Route::Sort => {
+                handlers::sort::handle_key_event(event, self).await;
             }
             Route::Search => {
                 handlers::search::handle_key_event(event, self).await;
@@ -216,6 +246,9 @@ impl App {
             Route::Torrents => {
                 handlers::torrents::handle_mouse_event(event, self).await;
             }
+            Route::Sort => {
+                handlers::sort::handle_mouse_event(event, self).await;
+            }
             Route::Categories => {
                 handlers::categories::handle_mouse_event(event, self).await;
             }
@@ -245,13 +278,41 @@ impl App {
         let normal_value = self.search_value.trim().to_lowercase();
         let dotted_value = normal_value.split(' ').collect::<Vec<&str>>().join(".");
 
-        let res: Vec<&TorrentInfo> = torrents
+        let mut res: Vec<&TorrentInfo> = torrents
             .into_iter()
             .filter(|item| {
                 let torrent_name = item.name.to_lowercase();
                 torrent_name.contains(&normal_value) || torrent_name.contains(&dotted_value)
             })
             .collect();
+
+        // sort
+        if let Some(sort_order) = &self.name_sort_order {
+            match sort_order {
+                SortOrder::Asc => res.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap()),
+                SortOrder::Desc => res.sort_by(|a, b| b.name.partial_cmp(&a.name).unwrap()),
+            }
+        }
+
+        if let Some(sort_order) = &self.category_sort_order {
+            match sort_order {
+                SortOrder::Asc => {
+                    res.sort_by(|a, b| a.category.partial_cmp(&b.category).unwrap());
+                }
+                SortOrder::Desc => {
+                    if self.selected_category == SelectedCategory::All {
+                        res.sort_by(|a, b| b.category.partial_cmp(&a.category).unwrap());
+                    }
+                }
+            }
+        }
+
+        if let Some(sort_order) = &self.status_sort_order {
+            match sort_order {
+                SortOrder::Asc => res.sort_by(|a, b| (a.state as i32).cmp(&(b.state as i32))),
+                SortOrder::Desc => res.sort_by(|a, b| (b.state as i32).cmp(&(a.state as i32))),
+            }
+        }
 
         res
     }

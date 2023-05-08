@@ -95,6 +95,9 @@ pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
                     app.set_current_action(Action::Delete);
                 }
             }
+            KeyCode::Char('t') => {
+                app.current_route = Route::Sort;
+            }
             _ => {}
         },
         KeyEvent {

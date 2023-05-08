@@ -153,7 +153,7 @@ impl TorrentInfo {
     }
 
     pub fn is_running(&self) -> bool {
-        self.state == TorrentInfoState::PausedUp || self.state == TorrentInfoState::PausedDl
+        self.state != TorrentInfoState::PausedUp && self.state != TorrentInfoState::PausedDl
     }
 }
 
@@ -189,46 +189,59 @@ pub struct TransferInfoSync {
     pub use_alt_speed_limits: Option<bool>, // Connection status. See possible values here below
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+// src/base/bittorrent/torrent.h - TorrentState
+// src/webui/api/serialize/serialize_torrent.cpp
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 pub enum TorrentInfoState {
-    #[serde(rename = "error")]
-    Error,
-    #[serde(rename = "missingFiles")]
-    MissingFiles,
-    #[serde(rename = "uploading")]
-    Uploading,
-    #[serde(rename = "pausedUP")]
-    PausedUp,
-    #[serde(rename = "queuedUP")]
-    QueuedUp,
-    #[serde(rename = "stalledUP")]
-    StalledUp,
-    #[serde(rename = "checkingUP")]
-    CheckingUp,
-    #[serde(rename = "forcedUP")]
-    ForcedUp,
-    #[serde(rename = "allocating")]
-    Allocating,
-    #[serde(rename = "downloading")]
-    Downloading,
-    #[serde(rename = "metaDL")]
-    MetaDl,
-    #[serde(rename = "pausedDL")]
-    PausedDl,
-    #[serde(rename = "queuedDL")]
-    QueuedDl,
-    #[serde(rename = "stalledDL")]
-    StalledDl,
-    #[serde(rename = "checkingDL")]
-    CheckingDl,
+    #[serde(rename = "unknown")]
+    Unknown = -1,
+
     #[serde(rename = "forcedDL")]
     ForcedDl,
+    #[serde(rename = "downloading")]
+    Downloading,
+    #[serde(rename = "forcedMetaDL")]
+    ForcedMetaDL,
+    #[serde(rename = "metaDL")]
+    MetaDl,
+    #[serde(rename = "stalledDL")]
+    StalledDl,
+
+    #[serde(rename = "forcedUP")]
+    ForcedUp,
+    #[serde(rename = "uploading")]
+    Uploading,
+    #[serde(rename = "stalledUP")]
+    StalledUp,
+
     #[serde(rename = "checkingResumeData")]
     CheckingResumeData,
+    #[serde(rename = "queuedDL")]
+    QueuedDl,
+    #[serde(rename = "queuedUP")]
+    QueuedUp,
+
+    #[serde(rename = "checkingUP")]
+    CheckingUp,
+    #[serde(rename = "checkingDL")]
+    CheckingDl,
+
+    #[serde(rename = "pausedDL")]
+    PausedDl,
+    #[serde(rename = "pausedUP")]
+    PausedUp,
+
     #[serde(rename = "moving")]
     Moving,
-    #[serde(rename = "unknown")]
-    Unknown,
+
+    #[serde(rename = "missingFiles")]
+    MissingFiles,
+    #[serde(rename = "error")]
+    Error,
+
+    // deprecated
+    #[serde(rename = "allocating")]
+    Allocating,
 }
 
 impl TorrentInfoState {
@@ -236,7 +249,7 @@ impl TorrentInfoState {
         // qBittorrent/src/gui/transferlistmodel.cpp
         // qBittorrent/src/icons
         match self {
-            Self::Downloading | Self::ForcedDl | Self::MetaDl => "⯯",
+            Self::Downloading | Self::ForcedDl | Self::MetaDl | Self::ForcedMetaDL => "⯯",
             Self::StalledDl => "⯯", // another color
             Self::StalledUp => "⯭",
             Self::Uploading | Self::ForcedUp => "🠝",
