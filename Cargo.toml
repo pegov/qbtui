@@ -4,7 +4,7 @@ description = "A terminal user interface for qBittorrent"
 homepage = "https://github.com/pegov/qbtui"
 repository = "https://github.com/pegov/qbtui"
 categories = ["command-line-utilities"]
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 license = "MIT"
 
