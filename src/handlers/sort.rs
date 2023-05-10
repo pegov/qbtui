@@ -48,9 +48,7 @@ pub async fn handle_mouse_event(mouse_event: MouseEvent, app: &mut App) {
                 // SAFETY: UNSAFE
                 unsafe {
                     let state: &PubState = std::mem::transmute(&app.categories_list.state);
-                    if state.offset > 0 {
-                        i += state.offset;
-                    }
+                    i += state.offset;
                 }
                 if app.sort_list.items.len() > i {
                     app.sort_list.state.select(Some(i));
