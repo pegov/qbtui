@@ -8,8 +8,10 @@ use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tracing_subscriber::EnvFilter;
 
-use crate::app::App;
-use crate::ui::{start_ui, UiEvent};
+use crate::{
+    app::App,
+    ui::{start_ui, UiEvent},
+};
 
 mod api;
 mod app;
@@ -32,17 +34,17 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_writer(io::stderr)
+        .init();
+
     let args = Args::parse();
 
     if !args.url.starts_with("http://") && !args.url.starts_with("https://") {
         eprintln!("Url format: \"http://<host>:<port>\"");
         exit(1);
     }
-
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_writer(io::stderr)
-        .init();
 
     let (ui_tx, ui_rx) = channel::<UiEvent>(32);
     let (api_tx, mut api_rx) = channel::<ApiEvent>(32);
@@ -69,7 +71,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // TODO: terminal background color detection
     start_ui(Arc::clone(&app), ui_rx).await?;
 
     Ok(())
