@@ -19,7 +19,7 @@ use tokio::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{
         Block, BorderType, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Wrap,
@@ -110,8 +110,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         rects[1]
     };
 
-    let style = Style::default().fg(Color::White);
-    let create_block = |title| {
+    let create_block = |title, style| {
         Block::default()
             .borders(Borders::ALL)
             .style(style)
@@ -134,7 +133,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         };
 
         let text = Paragraph::new(vec![Spans::from(search_value.as_str())])
-            .block(create_block(search_title))
+            .block(create_block(search_title, Style::default()))
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: true });
 
@@ -143,7 +142,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let stats_text = app.transfer_info.to_stats_string(&app.host);
     let text = Paragraph::new(vec![Spans::from(stats_text.as_str())])
-        .block(create_block(""))
+        .block(create_block("", Style::default()))
         .alignment(Alignment::Right)
         .wrap(Wrap { trim: true });
 
@@ -151,8 +150,8 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     app.torrents_table_rect = Some(torrents_rect);
 
+    let normal_style = Style::default();
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-    let normal_style = Style::default().bg(Color::White);
 
     let category_header = match app.category_sort_order {
         Some(SortOrder::Asc) => "Category ⏷",
@@ -186,7 +185,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     ];
     let cells = headers
         .into_iter()
-        .map(|h| Cell::from(h).style(Style::default().fg(Color::Black)));
+        .map(|h| Cell::from(h).style(Style::default()));
 
     let head_row = Row::new(cells)
         .style(normal_style)
@@ -292,8 +291,8 @@ fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let list = List::new(items)
         .block(block)
         .start_corner(Corner::TopLeft)
-        .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().bg(Color::White).fg(Color::Black))
+        .style(Style::default())
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
 
     if app.sort_list.state.selected().is_none() {
@@ -348,8 +347,8 @@ fn draw_categories<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let list = List::new(items)
         .block(block)
         .start_corner(Corner::TopLeft)
-        .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().bg(Color::White).fg(Color::Black))
+        .style(Style::default())
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
 
     f.render_stateful_widget(list, size, &mut app.categories_list.state);
@@ -373,7 +372,7 @@ fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
     ];
 
     let paragraph = Paragraph::new(text)
-        .style(Style::default().fg(Color::White))
+        .style(Style::default())
         .block(block)
         .alignment(Alignment::Center)
         .wrap(Wrap { trim: true });
@@ -433,19 +432,25 @@ fn draw_dialog<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(vchunks[1]);
 
-    let (style_1, style_2) = match app.confirm {
-        true => (Color::Black, Color::White),
-        false => (Color::White, Color::Black),
+    let (style1, style2) = match app.confirm {
+        true => (
+            Style::default().add_modifier(Modifier::REVERSED),
+            Style::default(),
+        ),
+        false => (
+            Style::default(),
+            Style::default().add_modifier(Modifier::REVERSED),
+        ),
     };
 
     let ok_paragraph = Paragraph::new("Ok")
-        .style(Style::default().fg(style_1).bg(style_2))
+        .style(style1)
         .alignment(Alignment::Center);
 
     f.render_widget(ok_paragraph, hchunks[0]);
 
     let cancel_paragraph = Paragraph::new("Cancel")
-        .style(Style::default().fg(style_2).bg(style_1))
+        .style(style2)
         .alignment(Alignment::Center);
 
     f.render_widget(cancel_paragraph, hchunks[1]);
@@ -497,8 +502,8 @@ fn draw_files<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let list = List::new(items)
         .block(block)
         .start_corner(Corner::TopLeft)
-        .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().bg(Color::White).fg(Color::Black))
+        .style(Style::default())
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
 
     f.render_stateful_widget(list, size, &mut app.files_list.state);
