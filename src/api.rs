@@ -357,7 +357,7 @@ impl ApiHandler {
     pub async fn handle_error(&mut self, e: ApiError) {
         match e {
             ApiError::External(inner) => {
-                tracing::error!(?inner);
+                tracing::warn!(?inner);
                 let mut app = self.app.lock().await;
                 app.is_connected = false;
                 app.error_reconnection_attempt_n += 1;
@@ -375,14 +375,14 @@ impl ApiHandler {
                     let mut app = self.app.lock().await;
                     app.is_running = false;
                     app.forced_shutdown_reason = Some("Could not relogin".to_owned());
-                    tracing::error!("New session was not handled!");
+                    tracing::warn!("New session was not handled!");
                     return;
                 }
                 if self.handle(self.current_event.clone()).await.is_err() {
                     let mut app = self.app.lock().await;
                     app.is_running = false;
                     app.forced_shutdown_reason = Some("Not authenticated".to_owned());
-                    tracing::error!("New session was not handled!");
+                    tracing::warn!("New session was not handled!");
                     return;
                 };
                 tracing::warn!("New session was successfully handled!");

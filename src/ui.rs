@@ -57,7 +57,7 @@ pub async fn start_ui(app: Arc<Mutex<App>>, ui_rx: Receiver<UiEvent>) -> Result<
 
     let app = app.lock().await;
     if let Some(ref reason) = app.forced_shutdown_reason {
-        tracing::error!("Forced shutdown!");
+        tracing::warn!("Forced shutdown!");
         eprintln!("{reason}");
     }
 
