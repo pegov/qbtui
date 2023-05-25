@@ -90,6 +90,7 @@ pub struct App {
 
     pub is_connected: bool,
     pub is_running: bool,
+    pub forced_shutdown_reason: Option<String>,
 
     pub error_reconnection_attempt_n: usize,
 
@@ -150,6 +151,7 @@ impl App {
 
             is_connected: true,
             is_running: true,
+            forced_shutdown_reason: None,
 
             error_reconnection_attempt_n: 0,
 

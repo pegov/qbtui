@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc, time::Duration};
 
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     sync::{mpsc::Sender, Mutex},
@@ -11,13 +11,13 @@ use crate::{
     app::{App, Notification, Route, SelectedCategory},
     model::{
         Category, DeleteTorrentParams, GetMainDataParams, GetTorrentFilesParams,
-        GetTorrentListParams, Hashes, MainData, SpeedLimitsMode, TorrentFile, TorrentInfo,
-        TransferInfo,
+        GetTorrentListParams, Hashes, LoginPayload, MainData, SpeedLimitsMode, TorrentFile,
+        TorrentInfo, TransferInfo,
     },
     ui::UiEvent,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ApiEvent {
     Reload,
     Sync,
@@ -29,24 +29,51 @@ pub enum ApiEvent {
 }
 
 #[derive(Debug)]
-struct Api {
+pub struct Api {
     client: Client,
     base_url: String,
+    username: Option<String>,
+    password: Option<String>,
+}
+
+#[derive(Debug)]
+pub enum LoginError {
+    WrongCredentials,
+    TooManyAttempts,
+}
+
+#[derive(Debug)]
+pub enum ExternalError {
+    Connection(reqwest::Error),
+    Internal,
 }
 
 #[derive(Debug)]
 pub enum ApiError {
-    Connection(reqwest::Error),
+    External(ExternalError),
+    NotAuthenticated,
+    Login(LoginError),
+}
+
+impl From<LoginError> for ApiError {
+    fn from(value: LoginError) -> Self {
+        Self::Login(value)
+    }
 }
 
 impl From<reqwest::Error> for ApiError {
     fn from(value: reqwest::Error) -> Self {
-        Self::Connection(value)
+        Self::External(ExternalError::Connection(value))
     }
 }
 
 impl Api {
-    fn new(base_url: &str, do_not_verify_webui_certificate: bool) -> Self {
+    fn new(
+        base_url: &str,
+        do_not_verify_webui_certificate: bool,
+        username: Option<String>,
+        password: Option<String>,
+    ) -> Self {
         let client = reqwest::ClientBuilder::new()
             .cookie_store(true)
             .danger_accept_invalid_certs(do_not_verify_webui_certificate)
@@ -56,6 +83,8 @@ impl Api {
         Self {
             client,
             base_url: base_url.to_owned(),
+            username,
+            password,
         }
     }
 
@@ -68,14 +97,17 @@ impl Api {
         path: &str,
         query: Option<Q>,
     ) -> Result<String, ApiError> {
-        Ok(self
+        let res = self
             .client
             .get(self.build_url(path))
             .query(&query)
             .send()
-            .await?
-            .text()
-            .await?)
+            .await?;
+        if res.status() == 403 {
+            return Err(ApiError::NotAuthenticated);
+        }
+
+        Ok(res.text().await?)
     }
 
     async fn get_json<T, Q>(&self, path: &str, query: Option<Q>) -> Result<T, ApiError>
@@ -83,23 +115,85 @@ impl Api {
         T: for<'de> DeserializeOwned,
         Q: Serialize,
     {
-        Ok(self
+        let res = self
             .client
             .get(self.build_url(path))
             .query(&query)
             .send()
-            .await?
-            .json()
-            .await?)
+            .await?;
+        if res.status() == 403 {
+            return Err(ApiError::NotAuthenticated);
+        }
+
+        Ok(res.json().await?)
     }
 
-    async fn post<P: Serialize>(&self, path: &str, payload: Option<P>) -> Result<(), ApiError> {
-        self.client
+    async fn post<P: Serialize>(
+        &self,
+        path: &str,
+        payload: Option<P>,
+    ) -> Result<Response, ApiError> {
+        let res = self
+            .client
             .post(self.build_url(path))
             .form(&payload)
             .send()
             .await?;
+        if res.status() == 403 {
+            return Err(ApiError::NotAuthenticated);
+        }
 
+        Ok(res)
+    }
+
+    async fn post_with_timeout<P: Serialize>(
+        &self,
+        path: &str,
+        payload: Option<P>,
+        timeout: Duration,
+    ) -> Result<Response, ApiError> {
+        let res = self
+            .client
+            .post(self.build_url(path))
+            .form(&payload)
+            .timeout(timeout)
+            .send()
+            .await?;
+        if res.status() == 403 {
+            return Err(ApiError::NotAuthenticated);
+        }
+
+        Ok(res)
+    }
+
+    pub async fn login(&mut self) -> Result<(), ApiError> {
+        // 200, Ok. - ok
+        // 200, Fails. - wrong creds
+        // 403 - too many attempts
+        let payload = LoginPayload::new(
+            self.username.as_ref().unwrap(),
+            self.password.as_ref().unwrap(),
+        );
+        let res = self.post("/auth/login", Some(payload)).await?;
+
+        if res.status() == 200 {
+            let body = res.text().await.unwrap();
+            match body.as_str() {
+                "Ok." => Ok(()),
+                "Fails." => Err(LoginError::WrongCredentials.into()),
+                _ => unreachable!(),
+            }
+        } else if res.status() == 403 {
+            return Err(LoginError::TooManyAttempts.into());
+        } else {
+            return Err(ApiError::External(ExternalError::Internal));
+        }
+    }
+
+    pub async fn logout(&mut self) -> Result<(), ApiError> {
+        tracing::debug!("Logout");
+        self.post_with_timeout::<()>("/auth/logout", None, Duration::from_millis(500))
+            .await?;
         Ok(())
     }
 
@@ -130,12 +224,14 @@ impl Api {
 
     async fn pause(&self, hashes: &[&str]) -> Result<(), ApiError> {
         let payload = Hashes::from(hashes);
-        self.post("/torrents/pause", Some(payload)).await
+        self.post("/torrents/pause", Some(payload)).await?;
+        Ok(())
     }
 
     async fn resume(&self, hashes: &[&str]) -> Result<(), ApiError> {
         let payload = Hashes::from(hashes);
-        self.post("/torrents/resume", Some(payload)).await
+        self.post("/torrents/resume", Some(payload)).await?;
+        Ok(())
     }
 
     async fn categories(&self) -> Result<HashMap<String, Category>, ApiError> {
@@ -143,7 +239,8 @@ impl Api {
     }
 
     async fn delete(&self, payload: DeleteTorrentParams) -> Result<(), ApiError> {
-        self.post("/torrents/delete", Some(payload)).await
+        self.post("/torrents/delete", Some(payload)).await?;
+        Ok(())
     }
 
     async fn sync_maindata(&self, query: GetMainDataParams) -> Result<MainData, ApiError> {
@@ -154,8 +251,9 @@ impl Api {
 pub struct ApiHandler {
     app: Arc<Mutex<App>>,
     ui_tx: Sender<UiEvent>,
-    api: Api,
+    pub api: Api,
     rid: i64,
+    current_event: ApiEvent,
 }
 
 impl ApiHandler {
@@ -164,17 +262,26 @@ impl ApiHandler {
         ui_tx: Sender<UiEvent>,
         base_url: &str,
         do_not_verify_webui_certificate: bool,
+        username: Option<String>,
+        password: Option<String>,
     ) -> Self {
         Self {
-            api: Api::new(base_url, do_not_verify_webui_certificate),
+            api: Api::new(
+                base_url,
+                do_not_verify_webui_certificate,
+                username,
+                password,
+            ),
             ui_tx,
             app,
             rid: 0,
+            current_event: ApiEvent::Sync,
         }
     }
 
     pub async fn handle(&mut self, event: ApiEvent) -> Result<(), ApiError> {
         tracing::debug!(?event);
+        self.current_event = event.clone();
         let input_event: Option<UiEvent> = match event {
             ApiEvent::Reload => {
                 self.reload().await?;
@@ -249,13 +356,38 @@ impl ApiHandler {
 
     pub async fn handle_error(&mut self, e: ApiError) {
         match e {
-            ApiError::Connection(inner) => {
+            ApiError::External(inner) => {
                 tracing::error!(?inner);
                 let mut app = self.app.lock().await;
                 app.is_connected = false;
                 app.error_reconnection_attempt_n += 1;
                 app.current_route = Route::Torrents;
             }
+            ApiError::NotAuthenticated => {
+                {
+                    let app = self.app.lock().await;
+                    if !app.is_running {
+                        return;
+                    }
+                }
+                tracing::warn!("Handling new session...");
+                if self.api.login().await.is_err() {
+                    let mut app = self.app.lock().await;
+                    app.is_running = false;
+                    app.forced_shutdown_reason = Some("Could not relogin".to_owned());
+                    tracing::error!("New session was not handled!");
+                    return;
+                }
+                if self.handle(self.current_event.clone()).await.is_err() {
+                    let mut app = self.app.lock().await;
+                    app.is_running = false;
+                    app.forced_shutdown_reason = Some("Not authenticated".to_owned());
+                    tracing::error!("New session was not handled!");
+                    return;
+                };
+                tracing::warn!("New session was successfully handled!");
+            }
+            ApiError::Login(_) => unreachable!(),
         }
     }
 

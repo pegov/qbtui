@@ -377,3 +377,18 @@ impl From<&[&str]> for Hashes {
         }
     }
 }
+
+#[derive(Serialize)]
+pub struct LoginPayload {
+    username: String,
+    password: String,
+}
+
+impl LoginPayload {
+    pub fn new(username: &str, password: &str) -> Self {
+        Self {
+            username: username.to_owned(),
+            password: password.to_owned(),
+        }
+    }
+}

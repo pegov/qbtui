@@ -45,7 +45,7 @@ pub async fn start_ui(app: Arc<Mutex<App>>, ui_rx: Receiver<UiEvent>) -> Result<
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    run(&mut terminal, app, ui_rx).await?;
+    run(&mut terminal, Arc::clone(&app), ui_rx).await?;
 
     disable_raw_mode()?;
     execute!(
@@ -54,6 +54,12 @@ pub async fn start_ui(app: Arc<Mutex<App>>, ui_rx: Receiver<UiEvent>) -> Result<
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
+
+    let app = app.lock().await;
+    if let Some(ref reason) = app.forced_shutdown_reason {
+        tracing::error!("Forced shutdown!");
+        eprintln!("{reason}");
+    }
 
     Ok(())
 }
