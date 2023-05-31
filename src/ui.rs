@@ -20,7 +20,7 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Span, Spans, Text},
+    text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Wrap,
     },
@@ -138,7 +138,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             ""
         };
 
-        let text = Paragraph::new(vec![Spans::from(search_value.as_str())])
+        let text = Paragraph::new(vec![Line::from(search_value.as_str())])
             .block(create_block(search_title, Style::default()))
             .alignment(Alignment::Left)
             .wrap(Wrap { trim: true });
@@ -147,7 +147,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     }
 
     let stats_text = app.transfer_info.to_stats_string(&app.host);
-    let text = Paragraph::new(vec![Spans::from(stats_text.as_str())])
+    let text = Paragraph::new(vec![Line::from(stats_text.as_str())])
         .block(create_block("", Style::default()))
         .alignment(Alignment::Right)
         .wrap(Wrap { trim: true });
@@ -369,12 +369,12 @@ fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
         .border_type(BorderType::Rounded);
 
     let text = vec![
-        Spans::from(Span::styled(
+        Line::from(Span::styled(
             title,
             Style::default().add_modifier(Modifier::BOLD),
         )),
-        Spans::from(Span::raw("")),
-        Spans::from(Span::raw(text)),
+        Line::from(Span::raw("")),
+        Line::from(Span::raw(text)),
     ];
 
     let paragraph = Paragraph::new(text)
@@ -418,9 +418,9 @@ fn draw_dialog<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         Action::DeleteFiles => "Are you sure you want to delete the torrent AND FILES?",
     };
     let text = vec![
-        Spans::from(Span::raw(question)),
-        Spans::from(Span::raw("")),
-        Spans::from(Span::styled(
+        Line::from(Span::raw(question)),
+        Line::from(Span::raw("")),
+        Line::from(Span::styled(
             torrent_name,
             Style::default().add_modifier(Modifier::BOLD),
         )),
