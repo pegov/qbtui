@@ -38,12 +38,6 @@ pub struct AppListState {
     pub items: Vec<String>,
 }
 
-#[derive(Debug)]
-pub struct PubState {
-    pub offset: usize,
-    pub selected: Option<usize>,
-}
-
 #[derive(Debug, Default)]
 pub struct ScrollableTextState {
     pub scroll: u16,

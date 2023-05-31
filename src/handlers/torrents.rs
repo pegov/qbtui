@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use crate::{
     api::ApiEvent,
-    app::{Action, App, Notification, PubState, Route},
+    app::{Action, App, Notification, Route},
 };
 
 pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
@@ -136,12 +136,7 @@ pub async fn handle_mouse_event(mouse_event: MouseEvent, app: &mut App) {
                 && app.left_click.1 >= rect_row_start
             {
                 let mut i: usize = (app.left_click.1 - rect_row_start).into();
-
-                // SAFETY: UNSAFE
-                unsafe {
-                    let state: &PubState = std::mem::transmute(&app.torrents_table.state);
-                    i += state.offset;
-                }
+                i += app.torrents_table.state.offset();
 
                 if app.torrents_table.items.len() > i {
                     app.torrents_table.state.select(Some(i));

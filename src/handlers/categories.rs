@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
-use crate::app::{App, PubState, Route};
+use crate::app::{App, Route};
 
 pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
     #[allow(clippy::single_match)]
@@ -43,12 +43,7 @@ pub async fn handle_mouse_event(mouse_event: MouseEvent, app: &mut App) {
                 && app.left_click.1 >= rect_row_start
             {
                 let mut i: usize = (app.left_click.1 - rect_row_start).into();
-
-                // SAFETY: UNSAFE
-                unsafe {
-                    let state: &PubState = std::mem::transmute(&app.categories_list.state);
-                    i += state.offset;
-                }
+                i += app.categories_list.state.offset();
 
                 if app.categories_list.items.len() > i {
                     app.categories_list.state.select(Some(i));

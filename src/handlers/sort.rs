@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
-use crate::app::{next_sort_order, App, PubState, Route};
+use crate::app::{next_sort_order, App, Route};
 
 pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
     #[allow(clippy::single_match)]
@@ -44,12 +44,8 @@ pub async fn handle_mouse_event(mouse_event: MouseEvent, app: &mut App) {
                 && app.left_click.1 >= rect_row_start
             {
                 let mut i: usize = (app.left_click.1 - rect_row_start).into();
+                i += app.categories_list.state.offset();
 
-                // SAFETY: UNSAFE
-                unsafe {
-                    let state: &PubState = std::mem::transmute(&app.categories_list.state);
-                    i += state.offset;
-                }
                 if app.sort_list.items.len() > i {
                     app.sort_list.state.select(Some(i));
                     handle_sort_order_change(app, i);
