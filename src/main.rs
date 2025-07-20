@@ -69,7 +69,8 @@ async fn main() -> Result<()> {
     if args.username.is_some() && args.password.is_some() {
         if let Err(e) = api_handler.api.login().await {
             match e {
-                ApiError::External(_) => {
+                ApiError::External(e) => {
+                    tracing::debug!(?e);
                     eprintln!("Could not connect to {}: Check connection!", &args.url);
                     exit(1);
                 }
@@ -93,7 +94,8 @@ async fn main() -> Result<()> {
 
     if let Err(e) = api_handler.reload().await {
         match e {
-            ApiError::External(_) => {
+            ApiError::External(e) => {
+                tracing::debug!(?e);
                 eprintln!("Could not connect to {}: Check connection!", &args.url);
                 exit(1);
             }
