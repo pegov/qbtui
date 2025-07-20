@@ -226,9 +226,10 @@ pub enum TorrentInfoState {
     #[serde(rename = "checkingDL")]
     CheckingDl,
 
-    #[serde(rename = "pausedDL")]
+    // NOTE: I think they renamed it at some point
+    #[serde(rename = "pausedDL", alias = "stoppedDL")]
     PausedDl,
-    #[serde(rename = "pausedUP")]
+    #[serde(rename = "pausedUP", alias = "stoppedUP")]
     PausedUp,
 
     #[serde(rename = "moving")]
