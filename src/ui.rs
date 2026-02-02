@@ -18,7 +18,7 @@ use tokio::{
 };
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Corner, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{
@@ -90,8 +90,8 @@ fn create_centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_torrents(f: &mut Frame, app: &mut App) {
+    let size = f.area();
 
     let should_show_search_block =
         app.current_route == Route::Search || !app.search_value.is_empty();
@@ -233,7 +233,7 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         Constraint::Percentage(10), // dl
         Constraint::Percentage(11), // eta
     ];
-    let table = Table::new(rows)
+    let table = Table::new(rows, &table_constraints)
         .header(head_row)
         .block(
             Block::default()
@@ -242,15 +242,14 @@ fn draw_torrents<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 .title("Torrents")
                 .title_alignment(Alignment::Center),
         )
-        .highlight_style(selected_style)
-        .highlight_symbol("> ")
-        .widths(&table_constraints);
+        .row_highlight_style(selected_style)
+        .highlight_symbol("> ");
 
     f.render_stateful_widget(table, rects[0], &mut app.torrents_table.state);
 }
 
-fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_sort(f: &mut Frame, app: &mut App) {
+    let size = f.area();
 
     let area = create_centered_rect(40, 40, size);
     app.sort_list_rect = Some(area);
@@ -296,7 +295,6 @@ fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let list = List::new(items)
         .block(block)
-        .start_corner(Corner::TopLeft)
         .style(Style::default())
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
@@ -309,8 +307,8 @@ fn draw_sort<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_stateful_widget(list, area, &mut app.sort_list.state);
 }
 
-fn draw_help<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_help(f: &mut Frame, app: &mut App) {
+    let size = f.area();
 
     let text = include_str!("../docs/keys.md");
     let block = Block::default()
@@ -327,8 +325,8 @@ fn draw_help<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(paragraph, size);
 }
 
-fn draw_categories<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_categories(f: &mut Frame, app: &mut App) {
+    let size = f.area();
     app.categories_list_rect = Some(size);
 
     let block = Block::default()
@@ -352,7 +350,6 @@ fn draw_categories<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let list = List::new(items)
         .block(block)
-        .start_corner(Corner::TopLeft)
         .style(Style::default())
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
@@ -360,8 +357,8 @@ fn draw_categories<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_stateful_widget(list, size, &mut app.categories_list.state);
 }
 
-fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
-    let size = f.size();
+fn draw_notification(f: &mut Frame, title: &str, text: &str) {
+    let size = f.area();
     let area = create_centered_rect(70, 40, size);
 
     let block = Block::default()
@@ -387,8 +384,8 @@ fn draw_notification<B: Backend>(f: &mut Frame<B>, title: &str, text: &str) {
     f.render_widget(paragraph, area);
 }
 
-fn draw_dialog<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_dialog(f: &mut Frame, app: &mut App) {
+    let size = f.area();
 
     let width = std::cmp::min(size.width - 2, 60);
     let height = 14;
@@ -462,8 +459,8 @@ fn draw_dialog<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(cancel_paragraph, hchunks[1]);
 }
 
-fn draw_info<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_info(f: &mut Frame, app: &mut App) {
+    let size = f.area();
 
     let block = Block::default()
         .title("Info")
@@ -480,8 +477,8 @@ fn draw_info<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(paragraph, size);
 }
 
-fn draw_files<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    let size = f.size();
+fn draw_files(f: &mut Frame, app: &mut App) {
+    let size = f.area();
     app.files_list_rect = Some(size);
 
     let block = Block::default()
@@ -507,7 +504,6 @@ fn draw_files<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let list = List::new(items)
         .block(block)
-        .start_corner(Corner::TopLeft)
         .style(Style::default())
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
@@ -519,7 +515,10 @@ pub async fn run<B: Backend>(
     terminal: &mut Terminal<B>,
     app: Arc<Mutex<App>>,
     mut ui_rx: Receiver<UiEvent>,
-) -> Result<()> {
+) -> Result<()>
+where
+    B::Error: Send + Sync + 'static,
+{
     // first draw
     {
         let mut app = app.lock().await;
