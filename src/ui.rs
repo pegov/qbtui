@@ -135,7 +135,7 @@ fn draw_torrents(f: &mut Frame, app: &mut App) {
         let search_title = if let Route::Search = app.current_route {
             "Search (Enter - apply, Esc - discard)"
         } else {
-            ""
+            "Search"
         };
 
         let text = Paragraph::new(vec![Line::from(search_value.as_str())])
