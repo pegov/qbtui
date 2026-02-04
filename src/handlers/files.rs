@@ -23,7 +23,9 @@ pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
                 prev_file(app);
             }
             KeyCode::Char('o') | KeyCode::Enter => {
-                open_file(app);
+                if !app.remote {
+                    open_file(app);
+                }
             }
             _ => {}
         }
@@ -62,7 +64,8 @@ fn open_file(app: &mut App) {
     if let Some(i) = app.files_list.state.selected() {
         let file = &app.current_torrent_files.as_ref().unwrap()[i];
         let content_path = &app.current_torrent.as_ref().unwrap().content_path;
-        let path = Path::new(content_path).parent().unwrap();
+        let rewritten_content_path = app.rewrite_path(content_path);
+        let path = Path::new(&rewritten_content_path).parent().unwrap();
         let path = path.join(&file.name);
         if path.exists() {
             open::that_in_background(path);

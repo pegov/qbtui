@@ -77,6 +77,12 @@ pub fn next_sort_order(curr: &Option<SortOrder>) -> Option<SortOrder> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct PathRewrite {
+    pub from: String,
+    pub to: String,
+}
+
 #[derive(Debug)]
 pub struct App {
     pub host: String,
@@ -132,10 +138,18 @@ pub struct App {
 
     pub trace_send_sync_event_n: usize,
     pub trace_handle_sync_event_n: usize,
+
+    pub remote: bool,
+    pub path_rewrites: Option<Vec<PathRewrite>>,
 }
 
 impl App {
-    pub fn new(host: &str, api_tx: Sender<ApiEvent>) -> Self {
+    pub fn new(
+        host: &str,
+        api_tx: Sender<ApiEvent>,
+        remote: bool,
+        path_rewrites: Option<Vec<PathRewrite>>,
+    ) -> Self {
         let mut categories_list = AppListState::default();
         categories_list.state.select(Some(0)); // select "All" by default
 
@@ -193,7 +207,21 @@ impl App {
 
             trace_send_sync_event_n: 0,
             trace_handle_sync_event_n: 0,
+
+            remote,
+            path_rewrites,
         }
+    }
+
+    pub fn rewrite_path(&self, path: &str) -> String {
+        if let Some(ref rewrites) = self.path_rewrites {
+            for rewrite in rewrites {
+                if path.starts_with(&rewrite.to) {
+                    return path.replacen(&rewrite.to, &rewrite.from, 1);
+                }
+            }
+        }
+        path.to_string()
     }
 
     pub async fn handle_key_event(&mut self, event: KeyEvent) {

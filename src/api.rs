@@ -307,13 +307,18 @@ impl ApiHandler {
                 let mut app = self.app.lock().await;
                 if let Some(ref torrent) = app.current_torrent {
                     if files.len() == 1 {
-                        let path = Path::new(&torrent.content_path);
-                        if path.exists() {
-                            open::that_in_background(path);
+                        if !app.remote {
+                            let rewritten_path = app.rewrite_path(&torrent.content_path);
+                            let path = Path::new(&rewritten_path);
+                            if path.exists() {
+                                open::that_in_background(path);
+                            } else {
+                                app.notification = Some(Notification::FileNotFound);
+                            }
+                            None
                         } else {
-                            app.notification = Some(Notification::FileNotFound);
+                            None
                         }
-                        None
                     } else {
                         app.current_torrent_files = Some(files);
                         app.files_list.state.select(Some(0));

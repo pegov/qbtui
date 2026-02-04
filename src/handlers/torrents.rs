@@ -43,18 +43,26 @@ pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
                 if app.get_selected_torrent().is_some() {
                     let selected_torrent = app.get_selected_torrent().unwrap().clone();
                     app.current_torrent = Some(app.get_selected_torrent().unwrap().clone());
-                    let path = Path::new(&selected_torrent.content_path);
-                    if path.exists() {
-                        if path.is_file() {
-                            open::that_in_background(path);
+                    if !app.remote {
+                        let rewritten_path = app.rewrite_path(&selected_torrent.content_path);
+                        let path = Path::new(&rewritten_path);
+                        if path.exists() {
+                            if path.is_file() {
+                                open::that_in_background(path);
+                            } else {
+                                app.api_tx
+                                    .send(ApiEvent::Files(selected_torrent.hash.clone()))
+                                    .await
+                                    .unwrap();
+                            }
                         } else {
-                            app.api_tx
-                                .send(ApiEvent::Files(selected_torrent.hash.clone()))
-                                .await
-                                .unwrap();
+                            app.notification = Some(Notification::FileNotFound);
                         }
                     } else {
-                        app.notification = Some(Notification::FileNotFound);
+                        app.api_tx
+                            .send(ApiEvent::Files(selected_torrent.hash.clone()))
+                            .await
+                            .unwrap();
                     }
                 }
             }
@@ -106,7 +114,9 @@ pub async fn handle_key_event(key_event: KeyEvent, app: &mut App) {
             ..
         } => match code {
             KeyCode::Char('O') => {
-                open_folder_in_default_file_manager(app);
+                if !app.remote {
+                    open_folder_in_default_file_manager(app);
+                }
             }
             KeyCode::Char('X') => {
                 if app.get_selected_torrent().is_some() {
@@ -142,15 +152,17 @@ pub async fn handle_mouse_event(mouse_event: MouseEvent, app: &mut App) {
                     app.torrents_table.state.select(Some(i));
                 }
 
-                // double click
-                if elapsed_ms <= 500
+                // double click - only open if not in remote mode
+                if !app.remote
+                    && elapsed_ms <= 500
                     && app.get_selected_torrent().is_some()
                     && app.current_torrent.is_some()
                 {
                     let selected_torrent = app.get_selected_torrent().unwrap();
                     let current_torrent = app.current_torrent.as_ref().unwrap();
                     if selected_torrent.hash == current_torrent.hash {
-                        let path = Path::new(&selected_torrent.content_path);
+                        let rewritten_path = app.rewrite_path(&selected_torrent.content_path);
+                        let path = Path::new(&rewritten_path);
                         if path.exists() {
                             if path.is_file() {
                                 open::that_in_background(path);
@@ -204,7 +216,8 @@ fn prev_torrent(app: &mut App) {
 
 fn open_folder_in_default_file_manager(app: &mut App) {
     if let Some(torrent) = app.get_selected_torrent() {
-        let path = Path::new(&torrent.content_path);
+        let rewritten_path = app.rewrite_path(&torrent.content_path);
+        let path = Path::new(&rewritten_path);
         if path.is_dir() && path.exists() {
             open::that_in_background(path);
         } else if path.parent().unwrap().exists() {

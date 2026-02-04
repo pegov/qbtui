@@ -3,6 +3,7 @@ use std::{io, sync::Arc};
 
 use anyhow::Result;
 use api::{ApiError, ApiEvent, ApiHandler, LoginError};
+use app::PathRewrite;
 use clap::Parser;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
@@ -12,6 +13,22 @@ use crate::{
     app::App,
     ui::{start_ui, UiEvent},
 };
+
+fn parse_path_rewrites(s: &str) -> Vec<PathRewrite> {
+    s.split(',')
+        .filter_map(|mapping| {
+            let parts: Vec<&str> = mapping.split(':').collect();
+            if parts.len() == 2 {
+                Some(PathRewrite {
+                    from: parts[0].to_string(),
+                    to: parts[1].to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 mod api;
 mod app;
@@ -36,6 +53,14 @@ struct Args {
     /// Necessary if the certificate is untrusted (e.g. self-signed)
     #[arg(long)]
     do_not_verify_webui_certificate: bool,
+
+    /// Remote mode - disables opening files/folders
+    #[arg(long)]
+    remote: bool,
+
+    /// Path rewriting mappings. Format: "/local/path1:/remote/path1,/local/path2:/remote/path2".
+    #[arg(long)]
+    rewrite_paths: Option<String>,
 }
 
 #[tokio::main]
@@ -55,7 +80,14 @@ async fn main() -> Result<()> {
     let (ui_tx, ui_rx) = channel::<UiEvent>(32);
     let (api_tx, mut api_rx) = channel::<ApiEvent>(32);
 
-    let app = Arc::new(Mutex::new(App::new(&args.url, api_tx.clone())));
+    let path_rewrites = args.rewrite_paths.as_ref().map(|s| parse_path_rewrites(s));
+
+    let app = Arc::new(Mutex::new(App::new(
+        &args.url,
+        api_tx.clone(),
+        args.remote,
+        path_rewrites,
+    )));
 
     let mut api_handler = ApiHandler::new(
         Arc::clone(&app),

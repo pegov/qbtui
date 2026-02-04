@@ -147,7 +147,14 @@ fn draw_torrents(f: &mut Frame, app: &mut App) {
     }
 
     let stats_text = app.transfer_info.to_stats_string(&app.host);
-    let text = Paragraph::new(vec![Line::from(stats_text.as_str())])
+
+    let status_content = if app.remote {
+        format!("🌐 REMOTE | {}", stats_text)
+    } else {
+        stats_text
+    };
+
+    let text = Paragraph::new(vec![Line::from(status_content.as_str())])
         .block(create_block("", Style::default()))
         .alignment(Alignment::Right)
         .wrap(Wrap { trim: true });
@@ -551,12 +558,12 @@ where
                 }
 
                 if let Some(ref notification) = app.notification {
+                    let mut s = "File not found";
+                    if app.path_rewrites.is_some() {
+                        s = "File not found or rewrite paths are wrong";
+                    }
                     match notification {
-                        Notification::FileNotFound => draw_notification(
-                            f,
-                            "File not found",
-                            "File not found or remote server",
-                        ),
+                        Notification::FileNotFound => draw_notification(f, "File not found", s),
                     }
                 }
 
